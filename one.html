@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#f4f5f7">
+<title>小圈子</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", Arial, sans-serif; background: #f4f5f7; color: #1f2329; font-size: 15px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+  button { font-family: inherit; font-size: 15px; cursor: pointer; }
+  .app { max-width: 600px; margin: 0 auto; min-height: 100vh; padding-bottom: 92px; }
+  .topbar { position: sticky; top: 0; z-index: 40; display: flex; align-items: center; gap: 8px; padding: 14px 16px 10px; background: rgba(244,245,247,.92); backdrop-filter: blur(12px); }
+  .topbar h1 { font-size: 20px; margin: 0; font-weight: 600; }
+  .topbar-sub { font-size: 12px; color: #9aa1ac; margin-left: auto; }
+  .back { border: none; background: none; font-size: 26px; line-height: 1; padding: 0 6px 4px; color: #1f2329; }
+  .card { background: #fff; border-radius: 16px; margin: 12px; padding: 14px; box-shadow: 0 1px 3px rgba(16,24,40,.05); }
+  .bottom-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; max-width: 600px; margin: 0 auto; display: flex; background: rgba(255,255,255,.97); backdrop-filter: blur(12px); border-top: 1px solid #ecedf0; padding-bottom: env(safe-area-inset-bottom); }
+  .nav-item { flex: 1; border: none; background: none; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 0 10px; color: #9aa1ac; font-size: 11px; }
+  .nav-item.on { color: #4c7ef3; }
+  .nav-item svg { width: 22px; height: 22px; }
+  .auth { padding: 54px 20px 40px; }
+  .auth-head { text-align: center; margin-bottom: 24px; }
+  .logo { width: 62px; height: 62px; border-radius: 18px; margin: 0 auto 14px; background: linear-gradient(135deg,#6f9bff,#4c7ef3); color: #fff; font-size: 32px; line-height: 62px; text-align: center; box-shadow: 0 8px 20px rgba(76,126,243,.3); }
+  .auth-head h1 { font-size: 24px; margin: 0 0 6px; }
+  .auth-head p { margin: 0; color: #9aa1ac; font-size: 14px; }
+  .auth-card { padding: 18px 16px; }
+  .seg { display: flex; background: #f2f3f5; border-radius: 12px; padding: 4px; margin-bottom: 16px; }
+  .seg-btn { flex: 1; border: none; background: none; padding: 8px 0; border-radius: 9px; color: #7a828e; font-size: 14px; }
+  .seg-btn.on { background: #fff; color: #1f2329; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .field { display: block; margin-bottom: 14px; }
+  .field > span { display: block; font-size: 13px; color: #8a919c; margin-bottom: 6px; }
+  .field input, .field textarea { width: 100%; border: 1px solid #e7e9ed; border-radius: 12px; padding: 11px 13px; font-size: 15px; background: #fafbfc; outline: none; }
+  .field input:focus, .field textarea:focus { border-color: #4c7ef3; background: #fff; }
+  .btn { border: none; border-radius: 12px; padding: 12px 16px; font-size: 15px; background: #f2f3f5; color: #1f2329; display: inline-flex; align-items: center; justify-content: center; }
+  .btn-primary { background: linear-gradient(135deg,#6f9bff,#4c7ef3); color: #fff; font-weight: 600; }
+  .btn-block { display: flex; width: 100%; margin-top: 6px; }
+  .btn-ghost { background: #f2f3f5; color: #1f2329; font-size: 14px; padding: 8px 14px; border-radius: 10px; }
+  .btn-plain { background: #fff; color: #eb5757; border: 1px solid #f0d5d5; margin-top: 10px; }
+  .mini { border: none; background: #f2f3f5; color: #5b636e; font-size: 13px; padding: 6px 12px; border-radius: 9px; }
+  .mini.danger { background: #fdeeee; color: #eb5757; }
+  .chip { border: 1px solid #e7e9ed; background: #fafbfc; color: #6b7280; padding: 8px 14px; border-radius: 20px; font-size: 13px; }
+  .chip.on { background: #eef3ff; border-color: #bdd0ff; color: #4c7ef3; font-weight: 600; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .feed { padding-bottom: 10px; }
+  .post { padding: 14px 14px 6px; }
+  .post-head { display: flex; align-items: center; gap: 10px; }
+  .avatar { border-radius: 50%; overflow: hidden; flex: none; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .post-meta { min-width: 0; flex: 1; }
+  .nick { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .time { font-size: 12px; color: #9aa1ac; }
+  .post-text { margin: 10px 0 0; white-space: pre-wrap; word-break: break-word; }
+  .post-foot { display: flex; gap: 8px; flex-wrap: wrap; padding: 8px 0; margin-top: 8px; border-top: 1px solid #f2f3f5; }
+  .imgs { display: grid; gap: 6px; margin-top: 10px; }
+  .imgs img { width: 100%; height: 100%; object-fit: cover; border-radius: 10px; cursor: pointer; }
+  .imgs.one { grid-template-columns: 1fr; max-width: 72%; }
+  .imgs.one img { max-height: 340px; }
+  .imgs.two { grid-template-columns: 1fr 1fr; }
+  .imgs.two img, .imgs.three img { aspect-ratio: 1; }
+  .imgs.three { grid-template-columns: repeat(3, 1fr); }
+  .empty { text-align: center; padding: 70px 20px; color: #9aa1ac; }
+  .empty-emoji { font-size: 42px; margin-bottom: 10px; }
+  .profile { background: #fff; overflow: hidden; margin-bottom: 4px; }
+  .cover { height: 150px; background-size: cover; background-position: center; }
+  .profile-body { padding: 0 18px 16px; margin-top: -38px; position: relative; }
+  .avatar-wrap { display: inline-block; border: 3px solid #fff; border-radius: 50%; background: #fff; line-height: 0; }
+  .profile-name { font-size: 19px; font-weight: 600; margin-top: 8px; }
+  .profile-bio { font-size: 14px; color: #8a919c; margin-top: 3px; }
+  .profile-btns { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .tabs2 { display: flex; background: #fff; margin: 10px 12px 0; border-radius: 14px; padding: 5px; }
+  .tabs2-btn { flex: 1; border: none; background: none; padding: 9px 0; font-size: 14px; color: #7a828e; border-radius: 10px; }
+  .tabs2-btn.on { background: #eef3ff; color: #4c7ef3; font-weight: 600; }
+  .pub-text { width: 100%; min-height: 132px; border: none; outline: none; resize: none; font-size: 17px; background: transparent; font-family: inherit; }
+  .pub-imgs { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+  .pub-img { position: relative; width: 88px; height: 88px; border-radius: 12px; overflow: hidden; }
+  .pub-img img { width: 100%; height: 100%; object-fit: cover; }
+  .pub-img .del { position: absolute; top: 3px; right: 3px; width: 22px; height: 22px; border-radius: 50%; border: none; background: rgba(0,0,0,.55); color: #fff; font-size: 15px; line-height: 1; }
+  .pub-add { width: 88px; height: 88px; border-radius: 12px; border: 1px dashed #d8dbe1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #b6bcc5; background: #fafbfc; }
+  .pub-add span { font-size: 26px; }
+  .pub-add em { font-style: normal; font-size: 11px; }
+  .set-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0 14px; }
+  .set-title { font-size: 13px; color: #8a919c; margin-bottom: 10px; }
+  .swatches { display: flex; gap: 10px; flex-wrap: wrap; }
+  .swatch { width: 36px; height: 36px; border-radius: 50%; border: 2px solid transparent; }
+  .swatch.on { border-color: #1f2329; box-shadow: 0 0 0 2px #fff inset; }
+  .toast { position: fixed; left: 50%; bottom: 112px; transform: translate(-50%, 10px); background: rgba(31,35,41,.92); color: #fff; font-size: 14px; padding: 10px 18px; border-radius: 20px; z-index: 999; opacity: 0; transition: all .25s; pointer-events: none; max-width: 80vw; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .viewer { position: fixed; inset: 0; background: rgba(0,0,0,.94); z-index: 500; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .viewer img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; }
+  .loading { text-align: center; padding: 30px; color: #9aa1ac; }
+</style>
+</head>
+<body>
+
+<div id="app" class="app"><div class="loading">加载中...</div></div>
+
+<script>
+// =======================================================
+// 👇👇👇 请在这里填入你的 Key 👇👇👇
+let myUrl = 'https://ubpsdlkusyuqcawsgcjb.supabase.co';
+let myKey = '在这里粘贴你备忘录里那串 sb_publishable_ 开头的完整钥匙'; 
+// 👆👆👆 请在这里填入你的 Key 👆👆👆
+// =======================================================
+
+localStorage.setItem('sb_url', myUrl);
+localStorage.setItem('sb_key', myKey);
+
+let sb = null;
+let currentUser = null;
+let authMode = 'login';
+let meTab = 'public';
+let draft = { text: '', images: [], visibility: 'public' };
+let allUsers = [];
+let allPosts = [];
+
+const ICONS = {
+  home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10.2 12 3l9 7.2"/><path d="M5.6 9.4V21h12.8V9.4"/><path d="M9.6 21v-6h4.8v6"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8.2v7.6M8.2 12h7.6"/></svg>',
+  user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.6"/><path d="M4.8 20.2c.6-3.7 3.6-5.9 7.2-5.9s6.6 2.2 7.2 5.9"/></svg>'
+};
+
+function $(id) { return document.getElementById(id); }
+function toast(msg) {
+  let el = document.createElement('div'); el.className = 'toast'; el.textContent = msg;
+  document.body.appendChild(el); setTimeout(() => el.classList.add('show'), 10);
+  setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 300); }, 1800);
+}
+function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function timeAgo(ts) { let d = Date.now() - new Date(ts).getTime(); if (d < 60000) return '刚刚'; if (d < 3600000) return Math.floor(d/60000)+'分钟前'; if (d < 86400000) return Math.floor(d/3600000)+'小时前'; let dt = new Date(ts); return (dt.getMonth()+1)+'月'+dt.getDate()+'日'; }
+function avatarHTML(user, size) {
+  let s = size || 44, style = `width:${s}px;height:${s}px;font-size:${s*0.4}px;`;
+  if (user && user.avatar) return `<div class="avatar" style="${style}"><img src="${user.avatar}"></div>`;
+  let name = (user && (user.nickname || user.username)) || '?';
+  let hash = 0; for(let i=0;i<name.length;i++) hash = name.charCodeAt(i) + ((hash<<5)-hash);
+  let colors = ['#4c7ef3','#f2994a','#eb5757','#27ae60','#9b51e0','#2d9cdb'];
+  return `<div class="avatar" style="${style}background:${colors[Math.abs(hash)%colors.length]};color:#fff;">${escapeHtml(name.slice(0,1))}</div>`;
+}
+
+function compressImage(file, maxSize, quality) {
+  return new Promise((resolve, reject) => {
+    let reader = new FileReader();
+    reader.onload = e => {
+      let img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if (w > maxSize || h > maxSize) { let r = Math.min(maxSize/w, maxSize/h); w = Math.round(w*r); h = Math.round(h*r); }
+        let c = document.createElement('canvas'); c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(c.toDataURL('image/jpeg', quality));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function initSupabase() {
+  try {
+    sb = supabase.createClient(myUrl, myKey);
+    let savedUser = localStorage.getItem('circle_uid');
+    if (savedUser) { currentUser = JSON.parse(savedUser); }
+    loadData().then(() => render());
+  } catch (e) { alert('连接失败: ' + e.message); }
+}
+
+async function loadData() {
+  let { data: users, error: err1 } = await sb.from('users').select('*');
+  let { data: posts, error: err2 } = await sb.from('posts').select('*').eq('deleted', false).order('created_at', { ascending: false });
+  allUsers = users || [];
+  allPosts = posts || [];
+  if (currentUser) {
+    let me = allUsers.find(u => u.id === currentUser.id);
+    if (me) currentUser = me; else { currentUser = null; localStorage.removeItem('circle_uid'); }
+  }
+  draft.visibility = currentUser ? (currentUser.default_visibility || 'public') : 'public';
+}
+
+window.go = function(path) { if (location.hash !== '#'+path) location.hash = path; else render(); }
+window.addEventListener('hashchange', render);
+
+function render() {
+  let path = location.hash.replace(/^#/, '') || '/home';
+  let seg = path.split('/').filter(Boolean);
+  let view = seg[0] || 'home';
+  let app = $('app');
+  window.scrollTo(0, 0);
+
+  if (!currentUser) { app.innerHTML = renderLogin(); return; }
+  let body = '';
+  if (view === 'home') body = renderHome();
+  else if (view === 'post') body = renderPublish();
+  else if (view === 'me') body = renderMe();
+  else if (view === 'user') body = renderUser(seg[1]);
+  else if (view === 'settings') body = renderSettings();
+  else body = renderHome();
+
+  app.innerHTML = body + renderNav(view);
+}
+
+function renderNav(view) {
+  let items = [
+    { key: 'home', label: '首页', icon: ICONS.home },
+    { key: 'post', label: '发布', icon: ICONS.plus },
+    { key: 'me', label: '我的', icon: ICONS.user }
+  ];
+  let active = (view === 'user') ? 'home' : view;
+  return `<nav class="bottom-nav">${items.map(it => `<button class="nav-item ${active===it.key?'on':''}" onclick="go('/${it.key}')"><span class="ic">${it.icon}</span><span>${it.label}</span></button>`).join('')}</nav>`;
+}
+
+window.switchAuth = function(m) { authMode = m; render(); }
+window.doLogin = async function() {
+  let u = $('authUser').value.trim(), p = $('authPass').value;
+  if (!u || !p) return toast('请填写完整');
+  let { data, error } = await sb.from('users').select('*').eq('username', u).eq('password', p);
+  if (error || !data || data.length === 0) return toast('账号或密码错误');
+  currentUser = data[0]; localStorage.setItem('circle_uid', JSON.stringify(currentUser));
+  draft.visibility = currentUser.default_visibility || 'public';
+  go('/home'); render(); toast('欢迎回来');
+}
+window.doRegister = async function() {
+  let u = $('authUser').value.trim(), p = $('authPass').value, n = $('authNick').value.trim();
+  if (!u || !p || !n) return toast('请填写完整');
+  let { data: exist } = await sb.from('users').select('id').eq('username', u);
+  if (exist && exist.length) return toast('账号已存在');
+  let newUser = { id: Date.now().toString(36) + Math.random().toString(36).slice(2), username: u, password: p, nickname: n, cover_color: '#4c7ef3', default_visibility: 'public', is_admin: false, banned: false };
+  let { error } = await sb.from('users').insert([newUser]);
+  if (error) return toast('注册失败');
+  currentUser = newUser; localStorage.setItem('circle_uid', JSON.stringify(currentUser));
+  go('/me'); render(); toast('注册成功');
+}
+window.doLogout = function() { if(confirm('退出？')){ currentUser = null; localStorage.removeItem('circle_uid'); location.hash = '/home'; render(); } }
+
+function renderLogin() {
+  let isReg = authMode === 'register';
+  return `<div class="auth"><div class="auth-head"><div class="logo">◎</div><h1>小圈子</h1><p>记录此刻，分享给这里的所有人</p></div>
+  <div class="card auth-card"><div class="seg"><button class="seg-btn ${!isReg?'on':''}" onclick="switchAuth('login')">登录</button><button class="seg-btn ${isReg?'on':''}" onclick="switchAuth('register')">注册</button></div>
+  <label class="field"><span>账号</span><input id="authUser" placeholder="字母或数字"></label>
+  <label class="field"><span>密码</span><input id="authPass" type="password" placeholder="至少6位"></label>
+  ${isReg?'<label class="field"><span>昵称</span><input id="authNick" placeholder="你的名字"></label>':''}
+  <button class="btn btn-primary btn-block" onclick="${isReg?'doRegister()':'doLogin()'}">${isReg?'注册并进入':'登录'}</button>
+  </div></div>`;
+}
+
+function renderHome() {
+  let pubPosts = allPosts.filter(p => p.visibility === 'public');
+  if (!pubPosts.length) return `<header class="topbar"><h1>小圈子</h1></header><div class="empty"><div class="empty-emoji">🌱</div><p>云端还没有动态</p><p>点下面发布第一条吧</p></div>`;
+  return `<header class="topbar"><h1>小圈子</h1><span class="topbar-sub">${pubPosts.length} 条公开动态</span></header><div class="feed">${pubPosts.map(p => postCard(p)).join('')}</div>`;
+}
+
+function postCard(post) {
+  let author = allUsers.find(u => u.id === post.user_id) || { nickname: '未知', username: '?' };
+  let mine = currentUser && post.user_id === currentUser.id;
+  let imgs = post.images || [];
+  let cls = imgs.length===1?'one':(imgs.length===2?'two':'three');
+  let imgHTML = imgs.length ?uthor `<div class="im,gs ${cls}">${im gs42.map((src,i)=>`<img src="${src}" onclick="openViewer('${post.id}',${i})">`).join('')}</div>` : '';
+  
+  return `<article class="card post">
+    <div class="post-head"><div onclick="go('/user/${author.id}')">${avatarHTML(a)}</div>
+      <div class="post-meta"><div class="nick">${escapeHtml(author.nickname)}${mine&&post.visibility==='private'?'<span style="font-size:11px;background:#eef3ff;color:#4c7ef3;padding:1px 6px;border-radius:4px">仅自己</span>':''}</div><div class="time">${timeAgo(post.created_at)}</div></div>
+    </div>
+    ${post.text?`<p class="post-text">${escapeHtml(post.text)}</p>`:''}
+    ${imgHTML}
+    <div class="post-foot">${mine ? `<button class="mini" onclick="toggleVis('${post.id}')">${post.visibility==='public'?'设为隐藏':'改回公开'}</button><button class="mini danger" onclick="delPost('${post.id}')">删除</button>` : ''}</div>
+  </article>`;
+}
+
+window.openViewer = function(postId, index) {
+  let post = allPosts.find(p => p.id === postId);
+  if (!post || !post.images[index]) return;
+  let el = document.createElement('div'); el.className = 'viewer'; el.innerHTML = `<img src="${post.images[index]}">`;
+  el.onclick = () => el.remove(); document.body.appendChild(el);
+}
+
+window.toggleVis = async function(id) {
+  let p = allPosts.find(x => x.id === id); if (!p) return;
+  let nv = p.visibility === 'public' ? 'private' : 'public';
+  await sb.from('posts').update({ visibility: nv }).eq('id', id);
+  p.visibility = nv; render(); toast(nv === 'public' ? '已公开' : '已隐藏');
+}
+
+window.delPost = async function(id) {
+  if (!confirm('确定删除吗？')) return;
+  await sb.from('posts').update({ deleted: true }).eq('id', id);
+  allPosts = allPosts.filter(p => p.id !== id); render(); toast('已删除');
+}
+
+function renderPublish() {
+  let imgsHTML = draft.images.map((src, i) => `<div class="pub-img"><img src="${src}"><button class="del" onclick="rmImg(${i})">×</button></div>`).join('');
+  if (draft.images.length < 9) imgsHTML += `<label class="pub-add"><input type="file" accept="image/*" multiple onchange="pickImg(this)" hidden><span>+</span><em>${draft.images.length}/9</em></label>`;
+  return `<header class="topbar"><h1>发布动态</h1></header>
+  <div class="card">
+    <textarea id="pubText" class="pub-text" placeholder="写点什么..." oninput="draft.text=this.value">${escapeHtml(draft.text)}</textarea>
+    <div class="pub-imgs">${imgsHTML}</div>
+    <div class="chips">
+      <button class="chip ${draft.visibility==='public'?'on':''}" onclick="setVis('public')">公开 · 所有人可见</button>
+      <button class="chip ${draft.visibility==='private'?'on':''}" onclick="setVis('private')">仅自己可见</button>
+    </div>
+    <button class="btn btn-primary btn-block" onclick="publish()">发布到云端</button>
+  </div>`;
+}
+
+window.setVis = function(v) { draft.text = $('pubText').value; draft.visibility = v; render(); }
+window.rmImg = function(i) { draft.text = $('pubText').value; draft.images.splice(i,1); render(); }
+window.pickImg = async function(input) {
+  let files = Array.from(input.files); if(!files.length) return;
+  toast('处理图片中...');
+  for (let f of files) { if (draft.images.length >= 9) break; draft.images.push(await compressImage(f, 800, 0.7)); }
+  draft.text = $('pubText').value; render();
+}
+
+window.publish = async function() {
+  let text = ($('pubText').value || '').trim();
+  if (!text && !draft.images.length) return toast('写点东西吧');
+  let btn = document.querySelector('.btn-primary'); btn.textContent = '发布中...'; btn.disabled = true;
+  let newPost = { id: Date.now().toString(36) + Math.random().toString(36).slice(2), user_id: currentUser.id, text: text, images: draft.images, visibility: draft.visibility };
+  let { data, error } = await sb.from('posts').insert([newPost]).select();
+  if (error) { toast('发布失败'); btn.textContent = '重试'; btn.disabled = false; return; }
+  allPosts.unshift(data[0]); draft = { text: '', images: [], visibility: currentUser.default_visibility || 'public' };
+  go('/home'); render(); toast('发布成功');
+}
+
+function profileHeader(user, isMe) {
+  let cover = user.cover_image ? `<div class="cover" style="background-image:url('${user.cover_image}')"></div>` : `<div class="cover" style="background:${user.cover_color||'#4c7ef3'}"></div>`;
+  let btns = isMe ? `<div class="profile-btns"><button class="btn btn-ghost" onclick="go('/settings')">编辑主页</button></div>` : `<div class="profile-btns"><button class="btn btn-ghost" onclick="go('/home')">返回首页</button></div>`;
+  return `<div class="profile">${cover}<div class="profile-body"><div class="avatar-wrap">${avatarHTML(user,72)}</div><div class="profile-name">${escapeHtml(user.nickname)}</div><div class="profile-bio">${escapeHtml(user.bio||'还没有简介')}</div>${btns}</div></div>`;
+}
+
+function renderMe() {
+  let myPosts = allPosts.filter(p => p.user_id === currentUser.id);
+  let pub = myPosts.filter(p => p.visibility === 'public'), priv = myPosts.filter(p => p.visibility === 'private');
+  let list = meTab === 'private' ? priv : pub;
+  let tabs = `<div class="tabs2"><button class="tabs2-btn ${meTab==='public'?'on':''}" onclick="switchTab('public')">公开 ${pub.length}</button><button class="tabs2-btn ${meTab==='private'?'on':''}" onclick="switchTab('private')">隐藏 ${priv.length}</button></div>`;
+  let body = list.length ? `<div class="feed">${list.map(p=>postCard(p)).join('')}</div>` : `<div class="empty"><div class="empty-emoji">📭</div><p>暂无动态</p></div>`;
+  return profileHeader(currentUser, true) + tabs + body;
+}
+window.switchTab = function(t) { meTab = t; render(); }
+
+function renderUser(id) {
+  let user = allUsers.find(u => u.id === id); if(!user) return `<div class="empty">用户不存在</div>`;
+  if (user.id === currentUser.id) return renderMe();
+  let posts = allPosts.filter(p => p.user_id === user.id && p.visibility === 'public');
+  let body = posts.length ? `<div class="feed">${posts.map(p=>postCard(p)).join('')}</div>` : `<div class="empty"><div class="empty-emoji">🍂</div><p>还没有公开动态</p></div>`;
+  return profileHeader(user, false) + body;
+}
+
+const COLORS = ['#4c7ef3','#6c5ce7','#9b51e0','#eb5757','#f2994a','#f2c94c','#27ae60','#2d9cdb','#34495e','#111827'];
+function renderSettings() {
+  let u = currentUser;
+  let swatches = COLORS.map(c => `<button class="swatch ${u.cover_color===c?'on':''}" style="background:${c}" onclick="setColor('${c}')"></button>`).join('');
+  return `<header class="topbar"><button class="back" onclick="go('/me')">‹</button><h1>设置</h1></header>
+  <div class="card">
+    <div class="set-row"><span>头像</span><label class="avatar-pick">${avatarHTML(u,52)}<input type="file" accept="image/*" onchange="changeAvatar(this)" hidden></label></div>
+    <label class="field"><span>昵称</span><input id="setNick" value="${escapeHtml(u.nickname)}"></label>
+    <label class="field"><span>简介</span><textarea id="setBio" rows="2">${escapeHtml(u.bio||'')}</textarea></label>
+    <button class="btn btn-primary btn-block" onclick="saveProfile()">保存资料</button>
+  </div>
+  <div class="card"><div class="set-title">封面颜色</div><div class="swatches">${swatches}</div></div>
+  <div class="card"><button class="btn btn-block btn-plain" onclick="doLogout()">退出登录</button></div>`;
+}
+
+window.saveProfile = async function() {
+  let nick = $('setNick').value.trim(), bio = $('setBio').value.trim();
+  if(!nick) return toast('昵称不能为空');
+  await sb.from('users').update({ nickname: nick, bio: bio }).eq('id', currentUser.id);
+  currentUser.nickname = nick; currentUser.bio = bio;
+  localStorage.setItem('circle_uid', JSON.stringify(currentUser)); render(); toast('已保存');
+}
+
+window.setColor = async function(c) {
+  await sb.from('users').update({ cover_color: c }).eq('id', currentUser.id);
+  currentUser.cover_color = c; localStorage.setItem('circle_uid', JSON.stringify(currentUser)); render();
+}
+
+window.changeAvatar = async function(input) {
+  let f = input.files[0]; if(!f) return;
+  toast('上传中...');
+  let base64 = await compressImage(f, 200, 0.8);
+  await sb.from('users').update({ avatar: base64 }).eq('id', currentUser.id);
+  currentUser.avatar = base64; localStorage.setItem('circle_uid', JSON.stringify(currentUser)); render(); toast('头像已更新');
+}
+
+initSupabase();
+</script>
+</body>
+</html>
